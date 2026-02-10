@@ -1,0 +1,22 @@
+{
+  "timestamp": "2026-02-03T17:20:11.411371",
+  "date": "2026-02-03",
+  "data_source": "API",
+  "regime": "RISK_ON",
+  "regime_duration_days": 142,
+  "market": {
+    "kospi200_index": 5595.42,
+    "vix": 16.34,
+    "vix_date": "2026-02-02"
+  },
+  "indicators": {
+    "ma_ratio_200": 11.0361,
+    "momentum_20": 761.89,
+    "volatility_20": 2216.27
+  },
+  "rules": {
+    "rule1_triggered": false,
+    "rule2_triggered": false
+  },
+  "alerts": []
+}
