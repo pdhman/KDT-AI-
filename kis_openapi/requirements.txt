@@ -1,6 +1,0 @@
-# KIS OpenAPI 직접 의존성
-requests>=2.31.0
-python-dotenv>=1.0.0
-numpy<2.4
-pandas>=2.1.0
-vectorbt>=0.26.2
