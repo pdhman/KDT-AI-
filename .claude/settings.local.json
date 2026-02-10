@@ -5,7 +5,8 @@
       "Bash(findstr:*)",
       "Bash(pip install:*)",
       "Bash(powershell:*)",
-      "Bash(del \"c:\\\\Users\\\\jeeho\\\\Desktop\\\\pj3\\\\project3\\\\최종\\\\_fix_csv_paths.py\")"
+      "Bash(del \"c:\\\\Users\\\\jeeho\\\\Desktop\\\\pj3\\\\project3\\\\최종\\\\_fix_csv_paths.py\")",
+      "Bash(C:/Users/jeeho/Desktop/pj3/project3/.venv/Scripts/pip.exe install pykrx)"
     ]
   }
 }
