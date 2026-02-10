@@ -1,0 +1,10 @@
+# 실시간 레짐 판단 시스템 - 필수 라이브러리
+# Python 3.10 이상 권장
+
+# 데이터 처리
+pandas>=3.0.0
+numpy>=2.4.0
+
+# 금융 데이터
+yfinance>=1.1.0
+finance-datareader>=0.9.102
