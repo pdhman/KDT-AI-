@@ -65,6 +65,7 @@ v3에서는 특히 **일별 mark-to-market equity 기록**을 적용하여,
 
 ## 폴더 구조 및 파일 설명
 
+```
 alpha_momentum_backtest/
 ├─ alpha_bt/                 # 백테스트 핵심 라이브러리
 │  ├─ backtest.py            # 백테스트 실행 로직 (v3: 일별 MTM equity 기록)
@@ -101,6 +102,7 @@ alpha_momentum_backtest/
 │
 ├─ requirements.txt          # Python 의존성 목록
 └─ README.md                 # 프로젝트 설명 문서
+```
 
 ---
 ## 출력 결과 (Outputs)
