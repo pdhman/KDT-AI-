@@ -15,7 +15,7 @@
 - 거래비용, 슬리피지, 보유 제약, 레짐 대응을 **옵션화**
 - 성과 분석 결과를 **PPT용 표/그래프**까지 자동 생성
 
-v3에서는 특히 **일별 mark-to-market equity 기록**을 적용하여,
+**일별 mark-to-market equity 기록**을 적용하여,
 월별·연도별 MDD(기간 내 최대 낙폭)를 **정확하게 계산**할 수 있습니다.
 
 ---
@@ -68,7 +68,7 @@ v3에서는 특히 **일별 mark-to-market equity 기록**을 적용하여,
 ```
 alpha_momentum_backtest/
 ├─ alpha_bt/                 # 백테스트 핵심 라이브러리
-│  ├─ backtest.py            # 백테스트 실행 로직 (v3: 일별 MTM equity 기록)
+│  ├─ backtest.py            # 백테스트 실행 로직
 │  ├─ dataio.py              # 데이터 로딩/저장 유틸리티
 │  ├─ krx_fetch.py           # KRX 데이터 수집 로직
 │  ├─ calendar_utils.py      # 거래일, 리밸런싱 날짜 유틸
