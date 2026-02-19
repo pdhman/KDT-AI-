@@ -42,8 +42,8 @@ v3에서는 특히 **일별 mark-to-market equity 기록**을 적용하여,
 
 ### 4. 거래비용
 - 수수료 (편도)
-  - 예: 0.03% → `0.0003`
-- 슬리피지 (A안)
+  - 예: 0.15% → `0.0015`
+- 슬리피지
   - 추가 비용(편도)
   - 예: 0.05% → `0.0005`
 - **총 편도 비용 = 수수료 + 슬리피지**
@@ -63,6 +63,46 @@ v3에서는 특히 **일별 mark-to-market equity 기록**을 적용하여,
 
 ---
 
+## 폴더 구조 및 파일 설명
+
+alpha_momentum_backtest/
+├─ alpha_bt/                 # 백테스트 핵심 라이브러리
+│  ├─ backtest.py            # 백테스트 실행 로직 (v3: 일별 MTM equity 기록)
+│  ├─ dataio.py              # 데이터 로딩/저장 유틸리티
+│  ├─ krx_fetch.py           # KRX 데이터 수집 로직
+│  ├─ calendar_utils.py      # 거래일, 리밸런싱 날짜 유틸
+│  ├─ indicators/            # 팩터/지표 모듈
+│  │  └─ momentum.py         # 6-1, 12-1 및 mixed momentum 계산
+│  ├─ engine/                # 포트폴리오/매매 엔진
+│  │  ├─ portfolio.py        # 포지션, 현금, 거래 기록 관리
+│  │  └─ execution.py        # 리밸런싱 및 거래비용/슬리피지 처리
+│  └─ reports/               # 성과 분석 및 리포트 산출
+│     ├─ metrics.py          # CAGR, MDD, Sharpe 등 성과 지표 계산
+│     ├─ periodic.py         # 월별/연도별 수익률 및 MDD 계산
+│     └─ export.py           # CSV/JSON 결과 저장
+│
+├─ scripts/                  # 실행 스크립트 모음
+│  ├─ fetch_prices.py        # 유니버스 기반 종목 가격 수집
+│  ├─ run_single.py          # 단일 전략 백테스트 실행
+│  ├─ grid_search.py         # 파라미터 그리드 서치 실행
+│  ├─ make_benchmark_plots.py# 전략 vs KOSPI200 Equity/MDD 그래프 생성
+│  └─ make_report.py         # PPT/리포트용 표·그래프 자동 생성
+│
+├─ data/                     # 입력 데이터
+│  ├─ universe_top100.csv    # 시총 상위 100 종목 유니버스 티커 예시
+│  ├─ universe_top200.csv    # 시총 상위 200 종목 유니버스 티커 예시
+│  ├─ prices_*.parquet       # 유니버스별 종목 가격 데이터
+│  └─ kospi200_index_close.parquet # 코스피200 가격지수 (벤치마크/레짐)
+│
+├─ outputs/                  # 백테스트 결과
+│  ├─ single/                # 단일 전략 실행 결과
+│  ├─ grid/                  # 그리드 서치 결과
+│  └─ benchmark/             # 벤치마크 비교 그래프 및 테이블
+│
+├─ requirements.txt          # Python 의존성 목록
+└─ README.md                 # 프로젝트 설명 문서
+
+---
 ## 출력 결과 (Outputs)
 
 ### 단일 실행 (Single Run)
@@ -145,7 +185,7 @@ python -m scripts.fetch_market_index --start 20131202 --end 20251231 \
 python -m scripts.run_single \
   --prices data/prices_top200.parquet \
   --start 20131202 --end 20251231 \
-  --N 10 --w 0.5 --rebalance monthly \
+  --N 10 --w 0.2 --rebalance monthly \
   --fee 0.0015 --slip 0.0000 \
   --min_hold 4 --reentry_ban 0 \
   --regime ma200 --market data/kospi200_index_close.parquet \
@@ -159,7 +199,7 @@ python -m scripts.run_single \
 python -m scripts.run_single \
   --prices data/prices_top200.parquet \
   --start 20131202 --end 20251231 \
-  --N 10 --w 0.5 --rebalance weekly \
+  --N 10 --w 0.2 --rebalance weekly \
   --fee 0.0015 --slip 0.0005 \
   --min_hold 4 --reentry_ban 0 --regime none \
   --outdir outputs/single/top200_weekly_holdonly
@@ -167,7 +207,7 @@ python -m scripts.run_single \
 
 ---
 
-## PPT / 리포트 자동 생성
+## 리포트 생성
 
 ```bash
 python -m scripts.make_report \
@@ -175,6 +215,17 @@ python -m scripts.make_report \
   --outdir outputs/report
 ```
 
+## Equity & Drawdown 그래프 생성
+
+```bash
+python -m scripts.make_benchmark_plots \
+  --prices data/prices_top200.parquet \
+  --market data/kospi200_index_close.parquet \
+  --start 20131202 --end 20251231 \
+  --N 10 --w 0.2 --rebalance monthly \
+  --fee 0.0015 --slip 0.0005 \
+  --min_hold 4 --reentry_ban 0 --regime none --outdir outputs/benchmark/u200_hold_4_n_10
+```
 ---
 
 ## 참고
