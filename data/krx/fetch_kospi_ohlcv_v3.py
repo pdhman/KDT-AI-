@@ -7,8 +7,11 @@ v2 대비 개선점:
   ③ 예외 로깅       : 조용히 삼키지 않고 logging 으로 파일 + 콘솔에 기록
   ④ 생존편향 제거   : 유니버스를 "연도별 종목 리스트의 합집합"으로 구성
                       → 기간 중 상장폐지된 종목도 포함(상폐 시점까지 데이터 수집)
+  ⑤ 스크리닝 정밀도 : 월초 1일 샘플 → '분기별 다중 샘플'로 변경(SAMPLES_PER_QUARTER)
+                      → 월초 편중을 없애고 연평균 거래대금 추정을 더 대표성 있게
+  ⑥ 최신일자 확장   : END_DATE 기본값을 '오늘'로(=수집 시점 최신까지). 필요시 고정 가능
 
-- 기간: 2016-01-01 ~ 2026-01-01
+- 기간: 2016-01-01 ~ (실행일, 기본값 오늘)
 - 대상: KOSPI 보통주 (우선주/스팩/리츠/ETF 제외)
 - 스크리닝: 연평균 거래대금 상위 250위에 1년이라도 진입 → safe
 - 출력: 통합 CSV (date,ticker,open,high,low,close,volume)
@@ -16,9 +19,12 @@ v2 대비 개선점:
 
 사용법:
     pip install -U pykrx pandas
-    python fetch_kospi_ohlcv_v3.py           # 처음부터
-    python fetch_kospi_ohlcv_v3.py           # 다시 실행하면 자동 이어받기(resume)
-    RESUME=0 python fetch_kospi_ohlcv_v3.py  # 처음부터 다시(기존 파일 무시)
+    python fetch_kospi_ohlcv_v3.py               # 처음부터 (END_DATE=오늘까지)
+    python fetch_kospi_ohlcv_v3.py               # 다시 실행하면 자동 이어받기(resume)
+    RESUME=0 python fetch_kospi_ohlcv_v3.py      # 처음부터 다시(기존 파일 무시)
+    END_DATE=20260101 python fetch_kospi_ohlcv_v3.py     # 종료일 고정
+    START_DATE=20200101 python fetch_kospi_ohlcv_v3.py   # 시작일 변경
+    SAMPLES_PER_QUARTER=8 python fetch_kospi_ohlcv_v3.py # 분기당 샘플 수 조정
 """
 
 import os
@@ -37,15 +43,21 @@ warnings.filterwarnings("ignore")
 # ============================================================
 # 설정
 # ============================================================
-START_DATE = "20160101"
-END_DATE = "20260101"
+START_DATE = os.environ.get("START_DATE", "20160101")
+# ⑥ 최신일자 확장: 기본 종료일 = 오늘 (환경변수 END_DATE 로 고정 가능)
+END_DATE = os.environ.get("END_DATE", datetime.now().strftime("%Y%m%d"))
 MARKET = "KOSPI"
 
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_DIR = os.path.join(_BASE_DIR, "kospi_ohlcv_data")
-OUTPUT_CSV = os.path.join(_BASE_DIR, "krx_ohlcv_20160101_20260101.csv")
+# 파일명을 기간에 맞춰 동적으로 구성 (기간이 바뀌면 다른 파일에 저장됨)
+OUTPUT_CSV = os.path.join(_BASE_DIR, f"krx_ohlcv_{START_DATE}_{END_DATE}.csv")
 
 TOP_N = 250                     # 연평균 거래대금 상위 N위 기준
+
+# ⑤ 스크리닝 정밀도: 분기(3개월)마다 몇 개 날짜를 샘플링할지 (월초 1일 대신)
+#    기본 6 → 분기당 6일 ≈ 연 24일 샘플 (v2의 연 12일 대비 대표성 향상)
+SAMPLES_PER_QUARTER = int(os.environ.get("SAMPLES_PER_QUARTER", "6"))
 
 # ② 이어받기: 환경변수 RESUME=0 이면 처음부터 다시
 RESUME = os.environ.get("RESUME", "1") != "0"
@@ -215,6 +227,26 @@ def build_universe():
 
 
 # ============================================================
+# ⑤ 분기별 다중 샘플 날짜 생성
+#    각 분기(3개월)를 균등 분할해 n_per_quarter개의 날짜를 뽑는다.
+#    (k+0.5)/n 비율로 배치 → 분기 경계(월초)에 몰리지 않고 고르게 분포.
+# ============================================================
+def quarter_sample_dates(year: int, y_start: str, y_end: str, n_per_quarter: int) -> list:
+    dates = []
+    for m0, m1 in [(1, 3), (4, 6), (7, 9), (10, 12)]:
+        q_start = datetime(year, m0, 1)
+        q_end = (datetime(year, 12, 31) if m1 == 12
+                 else datetime(year, m1 + 1, 1) - timedelta(days=1))
+        span = (q_end - q_start).days
+        for k in range(n_per_quarter):
+            frac = (k + 0.5) / n_per_quarter
+            ds = (q_start + timedelta(days=int(span * frac))).strftime("%Y%m%d")
+            if y_start <= ds <= y_end:
+                dates.append(ds)
+    return sorted(set(dates))
+
+
+# ============================================================
 # 거래대금 스크리닝 — 연평균 기준 Top250
 # ============================================================
 def screen_by_trading_value(universe: dict, biz_start: str, biz_end: str):
@@ -234,16 +266,18 @@ def screen_by_trading_value(universe: dict, biz_start: str, biz_end: str):
         y_start = max(f"{year}0101", biz_start)
         y_end = min(f"{year}1231", biz_end)
 
-        logger.info(f"  [{year}] {y_start}~{y_end} 월초 스냅샷 수집 중 ...")
+        logger.info(f"  [{year}] {y_start}~{y_end} 분기별 다중 샘플 수집 중 "
+                    f"(분기당 {SAMPLES_PER_QUARTER}개) ...")
 
-        monthly_frames = []
-        for month in range(1, 13):
-            sample_date = f"{year}{month:02d}01"
-            if sample_date < y_start or sample_date > y_end:
+        frames = []
+        seen_biz = set()  # 서로 다른 달력일이 같은 영업일로 귀결되면 중복 조회 방지
+        for cal_date in quarter_sample_dates(year, y_start, y_end, SAMPLES_PER_QUARTER):
+            sample_biz = get_nearest_business_day(cal_date, direction="forward")
+            if sample_biz[:4] != str(year) or sample_biz > y_end:
+                continue  # 연도/기간 넘어가면 스킵
+            if sample_biz in seen_biz:
                 continue
-            sample_biz = get_nearest_business_day(sample_date, direction="forward")
-            if sample_biz[:4] != str(year):
-                continue  # 연도 넘어가면 스킵
+            seen_biz.add(sample_biz)
 
             df_day = safe_call(stock.get_market_ohlcv, sample_biz, market=MARKET,
                                sleep=OHLCV_SLEEP, label=f"snapshot({sample_biz})")
@@ -254,13 +288,14 @@ def screen_by_trading_value(universe: dict, biz_start: str, biz_end: str):
                 continue
             if "거래대금" not in df_day.columns:
                 df_day["거래대금"] = df_day["종가"] * df_day["거래량"]
-            monthly_frames.append(df_day[["거래대금"]])
+            frames.append(df_day[["거래대금"]])
 
-        if not monthly_frames:
+        if not frames:
             logger.warning(f"  [{year}] 데이터 없음 → 스킵")
             continue
 
-        df_concat = pd.concat(monthly_frames)
+        logger.info(f"  [{year}] 유효 샘플일 {len(seen_biz)}일 수집")
+        df_concat = pd.concat(frames)
         avg_by_ticker = df_concat.groupby(df_concat.index)["거래대금"].mean()
         avg_by_ticker = avg_by_ticker[avg_by_ticker.index.isin(universe_tickers)]
 
@@ -450,9 +485,11 @@ def finalize_csv():
 # ============================================================
 def main():
     logger.info("╔══════════════════════════════════════════════════════════╗")
-    logger.info("║  KOSPI 보통주 OHLCV 수집기 v3 (2016-01-01 ~ 2026-01-01)  ║")
-    logger.info("║  연도별 합집합 유니버스 / 증분저장·resume / 로깅          ║")
+    logger.info("║  KOSPI 보통주 OHLCV 수집기 v3                            ║")
+    logger.info("║  연도별 합집합 유니버스 / 분기 다중샘플 / 증분·resume     ║")
     logger.info("╚══════════════════════════════════════════════════════════╝")
+    logger.info(f"  기간: {START_DATE} ~ {END_DATE}  |  분기당 샘플: {SAMPLES_PER_QUARTER}개")
+    logger.info(f"  출력: {OUTPUT_CSV}")
     logger.info(f"  RESUME = {RESUME} (환경변수 RESUME=0 이면 처음부터)")
 
     t0 = time.time()
