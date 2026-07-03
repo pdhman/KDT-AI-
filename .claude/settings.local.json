@@ -6,7 +6,11 @@
       "Bash(pip install:*)",
       "Bash(powershell:*)",
       "Bash(del \"c:\\\\Users\\\\jeeho\\\\Desktop\\\\pj3\\\\project3\\\\최종\\\\_fix_csv_paths.py\")",
-      "Bash(C:/Users/jeeho/Desktop/pj3/project3/.venv/Scripts/pip.exe install pykrx)"
+      "Bash(C:/Users/jeeho/Desktop/pj3/project3/.venv/Scripts/pip.exe install pykrx)",
+      "Bash(cp \"/root/.claude/uploads/e6d171a3-4ed5-536d-bf19-e289563c75c5/726132bc-Backtest_Indicator_v2.ipynb\" \"/home/user/KDT-AI-/Backtest_Indicator_v2.ipynb\")",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
     ]
   }
 }
